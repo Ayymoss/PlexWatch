@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using PlexEndTranscodeSession.Interfaces;
-using PlexEndTranscodeSession.Services;
+using PlexWatch.Interfaces;
+using PlexWatch.Services;
 
-namespace PlexEndTranscodeSession;
+namespace PlexWatch;
 
 public class AppEntry(
     EventProcessingService eventProcessingService,

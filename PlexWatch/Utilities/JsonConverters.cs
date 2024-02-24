@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace PlexEndTranscodeSession.Utilities;
+namespace PlexWatch.Utilities;
 
 public class StringToIntConverter : JsonConverter<int>
 {
@@ -17,6 +17,6 @@ public class StringToIntConverter : JsonConverter<int>
 
     public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
     {
-        throw new NotImplementedException();
+        // This is not needed for serialization
     }
 }

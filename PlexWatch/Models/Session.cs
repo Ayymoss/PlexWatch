@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using PlexEndTranscodeSession.Utilities;
+using PlexWatch.Utilities;
 
-namespace PlexEndTranscodeSession.Models;
+namespace PlexWatch.Models;
 
 public class Session
 {

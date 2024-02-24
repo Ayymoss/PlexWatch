@@ -1,9 +1,9 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-using PlexEndTranscodeSession.Events;
-using PlexEndTranscodeSession.Interfaces;
+using PlexWatch.Events;
+using PlexWatch.Interfaces;
 
-namespace PlexEndTranscodeSession.Services;
+namespace PlexWatch.Services;
 
 public partial class EventParsingService(FileWatcherService fileWatcherService, ILogger<EventParsingService> logger) : IDisposable
 {
@@ -29,6 +29,7 @@ public partial class EventParsingService(FileWatcherService fileWatcherService, 
             events.Add(streamStartedEvent);
         }
 
+        // Probably should decouple the file watcher from the event processing
         for (var i = 0; i < events.Count; i++)
         {
             logger.LogDebug("[{Index}/{Total}] Processing Event: {EventName}", i + 1, events.Count, events[i].GetType().Name);

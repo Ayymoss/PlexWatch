@@ -1,7 +1,7 @@
 ﻿using Serilog.Core;
 using Serilog.Events;
 
-namespace PlexEndTranscodeSession.Utilities;
+namespace PlexWatch.Utilities;
 
 public class ShortSourceContextEnricher : ILogEventEnricher
 {

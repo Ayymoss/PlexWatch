@@ -1,7 +1,7 @@
-﻿using PlexEndTranscodeSession.Events;
-using PlexEndTranscodeSession.Utilities;
+﻿using PlexWatch.Events;
+using PlexWatch.Utilities;
 
-namespace PlexEndTranscodeSession.Interfaces;
+namespace PlexWatch.Interfaces;
 
 public interface IEventSubscriptions
 {

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace PlexEndTranscodeSession.Models;
+namespace PlexWatch.Models;
 
 public class ResponseRoot
 {

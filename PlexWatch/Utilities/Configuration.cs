@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using System.Text.Json;
 
-namespace PlexEndTranscodeSession.Utilities;
+namespace PlexWatch.Utilities;
 
 public class Configuration
 {

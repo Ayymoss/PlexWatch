@@ -1,5 +1,8 @@
-﻿namespace PlexEndTranscodeSession.Utilities;
+﻿namespace PlexWatch.Utilities;
 
+/// <summary>
+/// Credit to @RaidMax for below Extension https://github.com/RaidMax/IW4M-Admin
+/// </summary>
 public static class EventExtensions
 {
     public static Task InvokeAsync<TEventType>(this Func<TEventType, CancellationToken, Task>? function, TEventType eventArgType,

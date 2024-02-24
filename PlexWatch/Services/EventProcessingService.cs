@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
-using PlexEndTranscodeSession.Events;
-using PlexEndTranscodeSession.Interfaces;
-using PlexEndTranscodeSession.Utilities;
+using PlexWatch.Events;
+using PlexWatch.Interfaces;
+using PlexWatch.Utilities;
 
-namespace PlexEndTranscodeSession.Services;
+namespace PlexWatch.Services;
 
 public class EventProcessingService(ITautulliApi tautulliApi, Configuration config, ILogger<EventProcessingService> logger)
 {
@@ -19,7 +19,7 @@ public class EventProcessingService(ITautulliApi tautulliApi, Configuration conf
             var sessions = sessionData?.Sessions;
             if (sessions is null) return;
 
-            logger.LogInformation("New stream started by {User} ({Title}) Open Streams: {StreamCount}",
+            logger.LogInformation("New stream started by {User} ({Title}) - Open Streams: {StreamCount}",
                 streamEvent.UserName, streamEvent.FullTitle, sessionData?.StreamCount);
 
             foreach (var session in sessions)

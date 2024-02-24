@@ -1,13 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PlexEndTranscodeSession.Interfaces;
-using PlexEndTranscodeSession.Services;
-using PlexEndTranscodeSession.Utilities;
+using PlexWatch.Interfaces;
+using PlexWatch.Services;
+using PlexWatch.Utilities;
 using Refit;
 using Serilog;
 using Serilog.Events;
+using EventParsingService = PlexWatch.Services.EventParsingService;
 
-namespace PlexEndTranscodeSession;
+namespace PlexWatch;
 
 public static class Program
 {
@@ -42,19 +43,19 @@ public static class Program
         Log.Logger = new LoggerConfiguration()
 #if DEBUG
             .MinimumLevel.Information()
-            .MinimumLevel.Override("PlexEndTranscodeSession", LogEventLevel.Debug)
+            .MinimumLevel.Override("PlexWatch", LogEventLevel.Debug)
 #else
             .MinimumLevel.Warning()
-            .MinimumLevel.Override("PlexEndTranscodeSession", LogEventLevel.Information)
+            .MinimumLevel.Override("PlexWatch", LogEventLevel.Information)
 #endif
             .Enrich.FromLogContext()
             .Enrich.With<ShortSourceContextEnricher>()
             .WriteTo.Console()
             .WriteTo.File(
-                Path.Join(AppContext.BaseDirectory, "_Log", "pks-.log"),
+                Path.Join(AppContext.BaseDirectory, "_Log", "PlexWatch-.log"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 10,
-                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+                outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3}] [{ShortSourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
     }
 }

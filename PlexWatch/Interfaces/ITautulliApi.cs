@@ -1,7 +1,7 @@
-﻿using PlexEndTranscodeSession.Models;
+﻿using PlexWatch.Models;
 using Refit;
 
-namespace PlexEndTranscodeSession.Interfaces;
+namespace PlexWatch.Interfaces;
 
 public interface ITautulliApi
 {

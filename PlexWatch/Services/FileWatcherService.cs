@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using PlexEndTranscodeSession.Utilities;
+using PlexWatch.Utilities;
 using FileInfo = System.IO.FileInfo;
 
-namespace PlexEndTranscodeSession.Services;
+namespace PlexWatch.Services;
 
 public class FileWatcherService(ILogger<FileWatcherService> logger, Configuration configuration) : IDisposable
 {

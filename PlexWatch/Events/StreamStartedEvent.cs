@@ -1,4 +1,4 @@
-﻿namespace PlexEndTranscodeSession.Events;
+﻿namespace PlexWatch.Events;
 
 public class StreamStartedEvent : BaseEvent
 {
