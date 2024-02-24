@@ -1,12 +1,13 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PlexWatch.Interfaces;
 using PlexWatch.Services;
+using PlexWatch.Subscriptions;
 using PlexWatch.Utilities;
 using Refit;
 using Serilog;
 using Serilog.Events;
-using EventParsingService = PlexWatch.Services.EventParsingService;
 
 namespace PlexWatch;
 
@@ -15,24 +16,41 @@ public static class Program
     public static async Task Main()
     {
         var builder = Host.CreateDefaultBuilder();
+
+        builder.ConfigureHostConfiguration(options =>
+        {
+            options.AddJsonFile("Configuration.json");
+            options.SetBasePath(Path.Join(Directory.GetCurrentDirectory(), "_Configuration"));
+        });
+
         builder.UseSerilog();
         builder.ConfigureServices(RegisterDependencies);
+
         var app = builder.Build();
+
+        // Manually resolve services
+        app.Services.GetRequiredService<EventParsingService>();
         await app.RunAsync();
     }
 
     private static void RegisterDependencies(HostBuilderContext builder, IServiceCollection service)
     {
-        var configuration = SetupConfiguration.ReadConfiguration();
         RegisterLogging();
+        service.AddSingleton(builder.Configuration.Get<Configuration>() ?? new Configuration());
 
-        service.AddSingleton(configuration);
+        // Services
         service.AddSingleton<FileWatcherService>();
         service.AddSingleton<EventParsingService>();
         service.AddSingleton<EventProcessingService>();
+        service.AddSingleton<TranscodeChecker>();
+
+        // Subscriptions
+        service.AddSingleton<StreamStartedSubscription>();
+        service.AddSingleton<TranscodeChangedSubscription>();
+
+        // Core
         service.AddHostedService<AppEntry>();
         service.AddRefitClient<ITautulliApi>().ConfigureHttpClient(c => c.BaseAddress = new Uri("http://10.10.1.7:8181"));
-        service.AddSerilog();
     }
 
     private static void RegisterLogging()

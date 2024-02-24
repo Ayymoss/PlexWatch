@@ -1,43 +1,25 @@
 ﻿using Microsoft.Extensions.Logging;
 using PlexWatch.Events;
 using PlexWatch.Interfaces;
-using PlexWatch.Utilities;
 
 namespace PlexWatch.Services;
 
-public class EventProcessingService(ITautulliApi tautulliApi, Configuration config, ILogger<EventProcessingService> logger)
+public class EventProcessingService(ILogger<EventProcessingService> logger)
 {
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public async Task OnStreamStartedEvent(StreamStartedEvent streamEvent, CancellationToken token)
+    public async Task ProcessEvents(List<BaseEvent> events, CancellationToken token)
     {
+        // TODO: Fix. Events are getting stuck here whilst existing are being processed
+        // Events stacking could be balloon
         await _semaphore.WaitAsync(token);
         try
         {
-            var response = await tautulliApi.GetActivityAsync(config.ApiKey);
-            var sessionData = response.ResponseRoot?.Data;
-            var sessions = sessionData?.Sessions;
-            if (sessions is null) return;
-
-            logger.LogInformation("New stream started by {User} ({Title}) - Open Streams: {StreamCount}",
-                streamEvent.UserName, streamEvent.FullTitle, sessionData?.StreamCount);
-
-            foreach (var session in sessions)
+            for (var i = 0; i < events.Count; i++)
             {
-                if (session.FullTitle.Contains("preroll", StringComparison.CurrentCultureIgnoreCase)) continue;
-                if (session.QualityProfile.Equals("Original", StringComparison.CurrentCulture)) continue;
-
-                logger.LogInformation(
-                    "Terminating ({SessionId} - {User}) {Title} [Quality: {Quality}, Video Decision: {VideoDecision}, Audio Decision: {AudioDecision}]",
-                    session.SessionId, session.User, session.FullTitle, session.QualityProfile, session.VideoDecision,
-                    session.AudioDecision);
-                await tautulliApi.TerminateSessionAsync(config.ApiKey, session.SessionKey, session.SessionId,
-                    "[TRANSCODE] Adjust Plex's Remote Quality to Original or Maximum");
+                logger.LogDebug("[{Index}/{Total}] Processing Event: {EventName}", i + 1, events.Count, events[i].GetType().Name);
+                await IEventSubscriptions.InvokeEventAsync(events[i], token);
             }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error executing scheduled action");
         }
         finally
         {

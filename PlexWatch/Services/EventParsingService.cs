@@ -1,44 +1,64 @@
 ﻿using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
 using PlexWatch.Events;
-using PlexWatch.Interfaces;
 
 namespace PlexWatch.Services;
 
-public partial class EventParsingService(FileWatcherService fileWatcherService, ILogger<EventParsingService> logger) : IDisposable
+public partial class EventParsingService : IDisposable
 {
-    [GeneratedRegex(@"^.+Session\s(\d+).+user\s(\d+)\s\(((\d|\w)+\*+\d)\).+ratingKey\s(\d+).+\((.+\s-\s.+)\)\.$")]
+    private readonly FileWatcherService _fileWatcherService;
+    private readonly EventProcessingService _eventProcessingService;
+
+    [GeneratedRegex(@"^.+Session\s(\d+).+user\s(\d+)\s\(((?:\d|\w)+\*+\d)\).+ratingKey\s(\d+).+\((.+)\)\.$")]
     private static partial Regex StreamStartedRegex();
 
-    public async Task OnFileChanged(IEnumerable<string> newLines, CancellationToken token)
+    [GeneratedRegex(@"^.+Session\s(\d+)\shas\schanged\stranscode\sdecision\.$")]
+    private static partial Regex TranscodeChangedRegex();
+
+    public EventParsingService(FileWatcherService fileWatcherService, EventProcessingService eventProcessingService)
+    {
+        _fileWatcherService = fileWatcherService;
+        _eventProcessingService = eventProcessingService;
+        fileWatcherService.OnFileChanged += OnFileChanged;
+    }
+
+    private async Task OnFileChanged(IEnumerable<string> newLines, CancellationToken token)
     {
         List<BaseEvent> events = [];
         foreach (var line in newLines)
         {
-            var match = StreamStartedRegex().Match(line);
-            if (!match.Success) continue;
+            var transcodeChanged = TranscodeChangedRegex().Match(line);
+            var streamStart = StreamStartedRegex().Match(line);
 
-            var streamStartedEvent = new StreamStartedEvent
+            if (streamStart.Success)
             {
-                Session = int.Parse(match.Groups[1].Value),
-                UserId = int.Parse(match.Groups[2].Value),
-                UserName = match.Groups[3].Value,
-                RatingKey = int.Parse(match.Groups[5].Value),
-                FullTitle = match.Groups[6].Value
-            };
-            events.Add(streamStartedEvent);
+                if (streamStart.Groups[5].Value.Contains("preroll", StringComparison.CurrentCultureIgnoreCase)) continue;
+
+                var streamStartedEvent = new StreamStartedEvent
+                {
+                    Session = int.Parse(streamStart.Groups[1].Value),
+                    UserId = int.Parse(streamStart.Groups[2].Value),
+                    UserName = streamStart.Groups[3].Value,
+                    RatingKey = int.Parse(streamStart.Groups[4].Value),
+                    FullTitle = streamStart.Groups[5].Value
+                };
+                events.Add(streamStartedEvent);
+            }
+
+            if (transcodeChanged.Success)
+            {
+                var streamStartedEvent = new TranscodeChangedEvent
+                {
+                    Session = int.Parse(transcodeChanged.Groups[1].Value)
+                };
+                events.Add(streamStartedEvent);
+            }
         }
 
-        // Probably should decouple the file watcher from the event processing
-        for (var i = 0; i < events.Count; i++)
-        {
-            logger.LogDebug("[{Index}/{Total}] Processing Event: {EventName}", i + 1, events.Count, events[i].GetType().Name);
-            await IEventSubscriptions.InvokeEventAsync(events[i], token);
-        }
+        await _eventProcessingService.ProcessEvents(events, token);
     }
 
     public void Dispose()
     {
-        fileWatcherService.OnFileChanged -= OnFileChanged;
+        _fileWatcherService.OnFileChanged -= OnFileChanged;
     }
 }
