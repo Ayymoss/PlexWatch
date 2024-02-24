@@ -3,25 +3,15 @@ using PlexWatch.Events;
 
 namespace PlexWatch.Services;
 
-public partial class EventParsingService : IDisposable
+public partial class EventParsingService(EventProcessingService eventProcessingService)
 {
-    private readonly FileWatcherService _fileWatcherService;
-    private readonly EventProcessingService _eventProcessingService;
-
-    [GeneratedRegex(@"^.+Session\s(\d+).+user\s(\d+)\s\(((?:\d|\w)+\*+\d)\).+ratingKey\s(\d+).+\((.+)\)\.$")]
+    [GeneratedRegex(@"^.+Session\s(\d+).+user\s(\d+)\s\(((?:\d|\w)+\*+\d)\).+ratingKey\s(\d+)\s\((.+)\)\.$")]
     private static partial Regex StreamStartedRegex();
 
     [GeneratedRegex(@"^.+Session\s(\d+)\shas\schanged\stranscode\sdecision\.$")]
     private static partial Regex TranscodeChangedRegex();
 
-    public EventParsingService(FileWatcherService fileWatcherService, EventProcessingService eventProcessingService)
-    {
-        _fileWatcherService = fileWatcherService;
-        _eventProcessingService = eventProcessingService;
-        fileWatcherService.OnFileChanged += OnFileChanged;
-    }
-
-    private async Task OnFileChanged(IEnumerable<string> newLines, CancellationToken token)
+    public void OnFileChanged(IEnumerable<string> newLines)
     {
         List<BaseEvent> events = [];
         foreach (var line in newLines)
@@ -54,11 +44,6 @@ public partial class EventParsingService : IDisposable
             }
         }
 
-        await _eventProcessingService.ProcessEvents(events, token);
-    }
-
-    public void Dispose()
-    {
-        _fileWatcherService.OnFileChanged -= OnFileChanged;
+        eventProcessingService.QueueEvents(events);
     }
 }

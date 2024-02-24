@@ -1,7 +1,4 @@
-﻿using System.Reflection;
-using System.Text.Json;
-
-namespace PlexWatch.Utilities;
+﻿namespace PlexWatch.Utilities;
 
 public class Configuration
 {

@@ -4,32 +4,32 @@ using FileInfo = System.IO.FileInfo;
 
 namespace PlexWatch.Services;
 
-public class FileWatcherService(ILogger<FileWatcherService> logger, Configuration configuration) : IDisposable
+public class FileWatcherService(ILogger<FileWatcherService> logger, Configuration configuration, EventParsingService eventParsingService)
+    : IDisposable
 {
-    public event Func<IEnumerable<string>, CancellationToken, Task>? OnFileChanged;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly string? _logDirectory = Path.GetDirectoryName(configuration.LogFileLocation);
     private readonly string? _logName = Path.GetFileName(configuration.LogFileLocation);
     private long _previousFileSize;
     private CancellationToken _cancellationToken;
-    private FileSystemWatcher? _fileWatcherService;
+    private FileSystemWatcher? _fileSystemWatcher;
 
     public void SetupFileWatcher(CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(_logDirectory) || string.IsNullOrWhiteSpace(_logName)) return;
 
         _cancellationToken = token;
-        _fileWatcherService = new FileSystemWatcher(_logDirectory);
-        _fileWatcherService.NotifyFilter = NotifyFilters.LastWrite;
-        _fileWatcherService.Changed += OnChanged;
-        _fileWatcherService.Filter = _logName;
-        _fileWatcherService.EnableRaisingEvents = true;
+        _fileSystemWatcher = new FileSystemWatcher(_logDirectory);
+        _fileSystemWatcher.NotifyFilter = NotifyFilters.LastWrite;
+        _fileSystemWatcher.Changed += OnChanged;
+        _fileSystemWatcher.Filter = _logName;
+        _fileSystemWatcher.EnableRaisingEvents = true;
 
         // Set the previous file size to the current file size to avoid processing the entire file on startup
         _previousFileSize = new FileInfo(Path.Join(_logDirectory, _logName)).Length;
     }
 
-    private void OnChanged(object sender, FileSystemEventArgs e)
+    private void OnChanged(object sender, FileSystemEventArgs fileSystemEventArgs)
     {
         _semaphore.Wait(_cancellationToken);
 
@@ -38,11 +38,11 @@ public class FileWatcherService(ILogger<FileWatcherService> logger, Configuratio
             var newLines = ReadNewFileLines();
             if (newLines.Count is 0) return;
 
-            Task.Run(() => OnFileChanged?.Invoke(newLines, _cancellationToken).ContinueWith(result =>
-            {
-                if (!result.IsFaulted) return;
-                logger.LogError(result.Exception, "Error invoking file changed event");
-            }, _cancellationToken), _cancellationToken).Wait(_cancellationToken);
+            eventParsingService.OnFileChanged(newLines);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error processing file changed event");
         }
         finally
         {
@@ -76,6 +76,6 @@ public class FileWatcherService(ILogger<FileWatcherService> logger, Configuratio
     public void Dispose()
     {
         _semaphore.Dispose();
-        _fileWatcherService?.Dispose();
+        _fileSystemWatcher?.Dispose();
     }
 }

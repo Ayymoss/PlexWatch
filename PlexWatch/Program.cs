@@ -45,8 +45,7 @@ public static class Program
         service.AddSingleton<TranscodeChecker>();
 
         // Subscriptions
-        service.AddSingleton<StreamStartedSubscription>();
-        service.AddSingleton<TranscodeChangedSubscription>();
+        service.AddSingleton<SubscriptionActions>();
 
         // Core
         service.AddHostedService<AppEntry>();
