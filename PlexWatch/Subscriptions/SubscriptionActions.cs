@@ -8,14 +8,14 @@ public class SubscriptionActions(ILogger<SubscriptionActions> logger, TranscodeC
 {
     public async Task OnStreamStartedEvent(StreamStartedEvent streamEvent, CancellationToken token)
     {
-        logger.LogInformation("New stream started by {User} [{Session}] ({Title})",
-            streamEvent.UserName, streamEvent.Session, streamEvent.FullTitle);
+        logger.LogInformation("New stream started by {User} [{SessionKey}] ({Title})",
+            streamEvent.UserName, streamEvent.SessionKey, streamEvent.FullTitle);
         await transcodeChecker.CheckForTranscode(token);
     }
 
     public async Task OnTranscodeChangedEvent(TranscodeChangedEvent transcodeEvent, CancellationToken token)
     {
-        logger.LogInformation("Transcode detected by {Session}", transcodeEvent.Session);
+        logger.LogInformation("Transcode detected [{SessionKey}]", transcodeEvent.SessionKey);
         await transcodeChecker.CheckForTranscode(token);
     }
 }

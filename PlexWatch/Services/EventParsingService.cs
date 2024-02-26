@@ -25,7 +25,7 @@ public partial class EventParsingService(EventProcessingService eventProcessingS
 
                 var streamStartedEvent = new StreamStartedEvent
                 {
-                    Session = int.Parse(streamStart.Groups[1].Value),
+                    SessionKey = int.Parse(streamStart.Groups[1].Value),
                     UserId = int.Parse(streamStart.Groups[2].Value),
                     UserName = streamStart.Groups[3].Value,
                     RatingKey = int.Parse(streamStart.Groups[4].Value),
@@ -38,7 +38,7 @@ public partial class EventParsingService(EventProcessingService eventProcessingS
             {
                 var streamStartedEvent = new TranscodeChangedEvent
                 {
-                    Session = int.Parse(transcodeChanged.Groups[1].Value)
+                    SessionKey = int.Parse(transcodeChanged.Groups[1].Value)
                 };
                 events.Add(streamStartedEvent);
             }

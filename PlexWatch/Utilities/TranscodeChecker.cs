@@ -19,11 +19,18 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, ITautulliApi tau
             foreach (var session in sessions)
             {
                 if (session.FullTitle.Contains("preroll", StringComparison.CurrentCultureIgnoreCase)) continue;
-                if (session.QualityProfile.Equals("Original", StringComparison.CurrentCulture)) continue;
+                if (session.QualityProfile.Equals("original", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    List<string> decisions = [session.AudioDecision.ToLower(), session.VideoDecision.ToLower()];
+                    if (decisions.Any(x => x.Contains("transcode", StringComparison.CurrentCultureIgnoreCase)))
+                        logger.LogInformation("Ignoring transcode decision for [{SessionKey}] as it is already set to Original",
+                            session.SessionKey);
+                    continue;
+                }
 
                 logger.LogInformation(
-                    "Terminating ({SessionId} - {User}) {Title} [Quality: {Quality}, Video Decision: {VideoDecision}, Audio Decision: {AudioDecision}]",
-                    session.SessionId, session.User, session.FullTitle, session.QualityProfile, session.VideoDecision,
+                    "Terminating ({SessionKey} - {SessionId} - {User}) {Title} [Quality: {Quality}, Video Decision: {VideoDecision}, Audio Decision: {AudioDecision}]",
+                    session.SessionKey, session.SessionId, session.User, session.FullTitle, session.QualityProfile, session.VideoDecision,
                     session.AudioDecision);
                 await tautulliApi.TerminateSessionAsync(config.ApiKey, session.SessionKey, session.SessionId,
                     "[TRANSCODE] Adjust Plex's Remote Quality to Original or Maximum");

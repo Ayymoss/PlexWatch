@@ -2,5 +2,5 @@
 
 public class TranscodeChangedEvent : BaseEvent
 {
-    public int Session { get; set; }
+    public int SessionKey { get; set; }
 }

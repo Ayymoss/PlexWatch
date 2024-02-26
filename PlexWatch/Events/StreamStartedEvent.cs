@@ -2,7 +2,7 @@
 
 public class StreamStartedEvent : BaseEvent
 {
-    public int Session { get; set; }
+    public int SessionKey { get; set; }
     public int UserId { get; set; }
     public string UserName { get; set; }
     public int RatingKey { get; set; }
