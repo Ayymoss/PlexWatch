@@ -6,16 +6,31 @@ namespace PlexWatch.Subscriptions;
 
 public class SubscriptionActions(ILogger<SubscriptionActions> logger, TranscodeChecker transcodeChecker)
 {
-    public async Task OnStreamStartedEvent(StreamStartedEvent streamEvent, CancellationToken token)
+    public async Task OnMediaPlayed(MediaPlayEvent mediaPlayEvent, CancellationToken token)
     {
-        logger.LogInformation("New stream started by {User} [{SessionKey}] ({Title})",
-            streamEvent.UserName, streamEvent.SessionKey, streamEvent.FullTitle);
+        logger.LogInformation("[PLAYED] {MediaType} played by {User} [{SessionKey}] ({Title})",
+            mediaPlayEvent.MediaType.ToString(), mediaPlayEvent.UserName, mediaPlayEvent.RatingKey, mediaPlayEvent.MediaTitle);
         await transcodeChecker.CheckForTranscode(token);
     }
 
-    public async Task OnTranscodeChangedEvent(TranscodeChangedEvent transcodeEvent, CancellationToken token)
+    public async Task OnMediaResumed(MediaResumeEvent mediaResumeEvent, CancellationToken token)
     {
-        logger.LogInformation("Transcode detected [{SessionKey}]", transcodeEvent.SessionKey);
+        logger.LogInformation("[RESUMED] {MediaType} resumed by {User} ([{SessionKey}] {Title})",
+            mediaResumeEvent.MediaType.ToString(), mediaResumeEvent.UserName, mediaResumeEvent.RatingKey, mediaResumeEvent.MediaTitle);
+        await transcodeChecker.CheckForTranscode(token);
+    }
+
+    public async Task OnMediaPaused(MediaPauseEvent mediaResumeEvent, CancellationToken token)
+    {
+        logger.LogInformation("[PAUSED] {MediaType} paused by {User} ([{SessionKey}] {Title})",
+            mediaResumeEvent.MediaType.ToString(), mediaResumeEvent.UserName, mediaResumeEvent.RatingKey, mediaResumeEvent.MediaTitle);
+        await transcodeChecker.CheckForTranscode(token);
+    }
+
+    public async Task OnMediaStopped(MediaStopEvent mediaResumeEvent, CancellationToken token)
+    {
+        logger.LogInformation("[STOPPED] {MediaType} paused by {User} ([{SessionKey}] {Title})",
+            mediaResumeEvent.MediaType.ToString(), mediaResumeEvent.UserName, mediaResumeEvent.RatingKey, mediaResumeEvent.MediaTitle);
         await transcodeChecker.CheckForTranscode(token);
     }
 }

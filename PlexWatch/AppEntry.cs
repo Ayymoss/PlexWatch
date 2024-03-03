@@ -8,17 +8,16 @@ namespace PlexWatch;
 
 public class AppEntry : IHostedService
 {
-    private readonly FileWatcherService _fileWatcherService;
     private readonly ILogger<AppEntry> _logger;
     private readonly EventProcessingService _eventProcessingService;
     private CancellationTokenSource? _cancellationTokenSource;
 
-    public AppEntry(SubscriptionActions subscriptionActions, FileWatcherService fileWatcherService, ILogger<AppEntry> logger,
-        EventProcessingService eventProcessingService)
+    public AppEntry(SubscriptionActions subscriptionActions, ILogger<AppEntry> logger, EventProcessingService eventProcessingService)
     {
-        IEventSubscriptions.StreamStarted += subscriptionActions.OnStreamStartedEvent;
-        IEventSubscriptions.TranscodeChanged += subscriptionActions.OnTranscodeChangedEvent;
-        _fileWatcherService = fileWatcherService;
+        IEventSubscriptions.MediaPlayed += subscriptionActions.OnMediaPlayed;
+        IEventSubscriptions.MediaResumed += subscriptionActions.OnMediaResumed;
+        IEventSubscriptions.MediaPaused += subscriptionActions.OnMediaPaused;
+        IEventSubscriptions.MediaStopped += subscriptionActions.OnMediaStopped;
         _logger = logger;
         _eventProcessingService = eventProcessingService;
     }
@@ -28,8 +27,7 @@ public class AppEntry : IHostedService
         _logger.LogInformation("Starting PlexWatch");
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         new Thread(() => _eventProcessingService.ProcessEvents(_cancellationTokenSource.Token))
-            {Name = nameof(EventProcessingService)}.Start();
-        _fileWatcherService.SetupFileWatcher(_cancellationTokenSource.Token);
+            { Name = nameof(EventProcessingService) }.Start();
         return Task.CompletedTask;
     }
 

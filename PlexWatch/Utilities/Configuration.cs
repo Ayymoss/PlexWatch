@@ -2,6 +2,6 @@
 
 public class Configuration
 {
-    public string ApiKey { get; set; } = null!;
-    public string LogFileLocation { get; set; } = null!;
+    public string PlexToken { get; set; } = null!;
+    public bool Debug { get; set; }
 }
