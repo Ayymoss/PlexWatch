@@ -33,11 +33,15 @@ public static class Program
         builder.Host.ConfigureServices(RegisterDependencies);
 
         var app = builder.Build();
-
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+        }
+        else
+        {
+            var configuration = app.Services.GetRequiredService<Configuration>();
+            app.Urls.Add(configuration.BindAddress);
         }
 
         MapEndpoints(app);
@@ -66,8 +70,8 @@ public static class Program
             }
             catch (Exception e)
             {
-                Log.Error(e, "Error processing Plex Webhook");
-                return Results.BadRequest("Error processing Plex Webhook");
+                Log.Error(e, "Error ingesting Plex Webhook");
+                return Results.BadRequest("Error ingesting Plex Webhook");
             }
 
             return Results.Ok();

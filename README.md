@@ -1,5 +1,6 @@
-Prototype project.
+# Plex Watch
 
-Raise events based on Tautulli/Plex activity.
+Listens to Plex Media Server webhooks and raises typed events.
+Currently, it will terminate a stream if they are transcoding (though this is nuanced).
 
-Currently will kill transcoding streams where profile isn't set to Original.
+Easily extendable to add more functionality.

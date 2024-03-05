@@ -4,9 +4,9 @@ using PlexWatch.Enums;
 
 namespace PlexWatch.Utilities;
 
-public class JsonConverters
+public abstract class JsonConverters
 {
-    public static JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    public static JsonSerializerOptions JsonOptions { get; } = new() { PropertyNameCaseInsensitive = true };
 }
 
 public class StringToIntConverter : JsonConverter<int>
@@ -16,7 +16,7 @@ public class StringToIntConverter : JsonConverter<int>
         if (reader.TokenType is JsonTokenType.Number) return reader.GetInt32();
         if (int.TryParse(reader.GetString(), out var value)) return value;
 
-        throw new JsonException("Failed to convert string to int");
+        throw new JsonException($"Failed to convert string to int: {reader.GetString()}");
     }
 
     public override void Write(Utf8JsonWriter writer, int value, JsonSerializerOptions options)
@@ -32,7 +32,7 @@ public class StringToFloatConverter : JsonConverter<float>
         if (reader.TokenType is JsonTokenType.Number) return reader.GetSingle();
         if (float.TryParse(reader.GetString(), out var value)) return value;
 
-        throw new JsonException("Failed to convert string to int");
+        throw new JsonException($"Failed to convert string to int: {reader.GetString()}");
     }
 
     public override void Write(Utf8JsonWriter writer, float value, JsonSerializerOptions options)
@@ -79,7 +79,7 @@ public class WebhookToEventEnumConverter : JsonConverter<PlexWebhookEventType>
             "device.new" => PlexWebhookEventType.DeviceNew,
 
             "playback.started" => PlexWebhookEventType.PlaybackStarted,
-            _ => throw new JsonException("Failed to convert string to enum")
+            _ => throw new JsonException($"Failed to convert string to enum: {webEvent}")
         };
     }
 
@@ -99,7 +99,7 @@ public class MediaTypeToEnumConverter : JsonConverter<MediaType>
             "movie" => MediaType.Movie,
             "episode" => MediaType.Episode,
             "clip" => MediaType.Clip,
-            _ => throw new JsonException("Failed to convert string to enum")
+            _ => throw new JsonException($"Failed to convert string to enum: {webEvent}")
         };
     }
 

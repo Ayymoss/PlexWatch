@@ -9,7 +9,7 @@ public interface IPlexApi
     Task<PlexRoot> GetSessions();
 
     [Get("/library/metadata/{metadataKey}/grandchildren")]
-    Task<PlexRoot> GetShowMetadataAsync([AliasAs("metadataKey")] string metadataKey);
+    Task<PlexRoot> GetEpisodeMetadataAsync([AliasAs("metadataKey")] string metadataKey);
 
     [Get("/library/metadata/{metadataKey}")]
     Task<PlexRoot> GetMovieMetadataAsync([AliasAs("metadataKey")] string metadataKey);
