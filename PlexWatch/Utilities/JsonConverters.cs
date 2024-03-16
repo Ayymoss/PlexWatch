@@ -97,7 +97,7 @@ public class MediaTypeToEnumConverter : JsonConverter<MediaType>
         return webEvent switch
         {
             "movie" => MediaType.Movie,
-            "episode" => MediaType.Episode,
+            "episode" or "show" => MediaType.Episode,
             "clip" => MediaType.Clip,
             _ => throw new JsonException($"Failed to convert string to enum: {webEvent}")
         };

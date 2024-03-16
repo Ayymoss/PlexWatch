@@ -56,15 +56,16 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
 
         var mediaBitrate = contentMedia.Bitrate;
         var streamBitrate = responseMedia.Part?.First().Stream?.First().Bitrate;
-
-        if (!mediaBitrate.HasValue || !streamBitrate.HasValue) return;
+        var streamVideoWidth = responseMedia.Width;
+        var sourceVideoWidth = contentMedia.Width;
+        if (!mediaBitrate.HasValue || !streamBitrate.HasValue || !streamVideoWidth.HasValue || !sourceVideoWidth.HasValue) return;
 
         var title = responseMeta.Type is MediaType.Episode
             ? $"{responseMeta.GrandparentTitle}: {responseMeta.Title}"
             : responseMeta.Title;
 
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
-        var terminate = !qualityProfile.Equals("Original");
+        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
 
         logger.LogInformation("Session -> {@LogData}", new
@@ -77,25 +78,44 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             Title = title,
             Device = device,
             VideoDecision = videoDecision.Titleize(),
+            SourceVideoWidth = sourceVideoWidth,
+            StreamVideoWidth = streamVideoWidth,
             StreamBitrate = streamBitrate,
             MediaReportedBitrate = responseMedia.Bitrate?.ToString() ?? "No Bitrate",
             MediaExpectedBitrate = mediaBitrate,
             SessionBandwidth = responseMeta.Session?.Bandwidth?.ToString() ?? "No Bandwidth"
         });
-        
-        if (!terminate) return;
-        logger.LogWarning("Terminating Session -> {@LogData}", new
+
+        if (terminate is TerminationReason.Ok) return;
+        logger.LogWarning("Terminating Session [{TerminationReason}] -> {@LogData}", terminate.Humanize().Titleize(), new
         {
-            SessionId = sessionId, 
+            SessionId = sessionId,
             QualityProfile = qualityProfile,
-            UserTitle = responseMeta.User?.Title, 
-            Title = title, 
-            VideoDecision = videoDecision.Titleize(), 
+            UserTitle = responseMeta.User?.Title,
+            Title = title,
+            VideoDecision = videoDecision.Titleize(),
             AudioDecision = audioDecision.Titleize()
         });
 
-        await plexApi.TerminateSessionAsync(sessionId,
-            $"«TRANSCODE»\n[Session ID: {sessionId}], [Detected Profile: {qualityProfile}],\n[Message: Adjust your Plex client's 'Remote Quality' to 'Original' or 'Maximum' via the settings.]");
+        var reason = Reason(terminate);
+        // Depending on the client, it will either keep the newline as expected, or replace it with a space.
+        await plexApi.TerminateSessionAsync(sessionId, $"«TRANSCODE»\n[Session ID: {sessionId}], [Reason: {reason}]," +
+                                                       $"\n[Message: Adjust your Plex client's 'Remote Quality' to 'Original' or 'Maximum' via the settings.]");
+    }
+
+    private static string Reason(TerminationReason termination) =>
+        termination switch
+        {
+            TerminationReason.StreamWidthMismatch => "Stream Width Mismatch",
+            TerminationReason.QualityProfileMismatch => "Remote Quality Unset",
+            _ => "Unknown"
+        };
+
+    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile)
+    {
+        if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase)) return TerminationReason.QualityProfileMismatch;
+        if (sourceWidth != streamWidth) return TerminationReason.StreamWidthMismatch;
+        return TerminationReason.Ok;
     }
 
     private string GetQualityProfile(string videoDecision, int streamBitrate, int sourceFileBitrate)
