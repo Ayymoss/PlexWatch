@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PlexWatch.Enums;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
+using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace PlexWatch.Utilities;
 
@@ -38,7 +39,8 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
         var mediaType = responseMeta.Type;
         var ratingKey = responseMeta.RatingKey;
         var videoDecision = responseMeta.TranscodeSession?.VideoDecision ?? "Direct Play";
-        var device = $"{responseMeta.Player?.Product}: {responseMeta.Player?.Title}";
+        var device = responseMeta.Player?.Device;
+        var player = $"{responseMeta.Player?.Product}: {responseMeta.Player?.Title}";
 
         if (string.IsNullOrEmpty(ratingKey)) return;
         var contentMeta = mediaType is MediaType.Episode
@@ -65,7 +67,7 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             : responseMeta.Title;
 
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
-        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile);
+        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, device);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
 
         logger.LogInformation("Session -> {@LogData}", new
@@ -76,7 +78,9 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             UserTitle = responseMeta.User?.Title,
             RatingKey = ratingKey,
             Title = title,
+            Type = mediaType,
             Device = device,
+            Player = player,
             VideoDecision = videoDecision.Titleize(),
             SourceVideoWidth = sourceVideoWidth,
             StreamVideoWidth = streamVideoWidth,
@@ -99,20 +103,28 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
 
         var reason = Reason(terminate);
         // Depending on the client, it will either keep the newline as expected, or replace it with a space.
-        await plexApi.TerminateSessionAsync(sessionId, $"«TRANSCODE»\n[Session ID: {sessionId}], [Reason: {reason}]," +
-                                                       $"\n[Message: Adjust your Plex client's 'Remote Quality' to 'Original' or 'Maximum' via the settings.]");
+        await plexApi.TerminateSessionAsync(sessionId, $"«ERROR»\n[Session ID: {sessionId}]," +
+                                                       $"\n[Reason: {reason.Reason}]," +
+                                                       $"\n[Message: {reason.Message}]");
     }
 
-    private static string Reason(TerminationReason termination) =>
-        termination switch
-        {
-            TerminationReason.StreamWidthMismatch => "Stream Width Mismatch",
-            TerminationReason.QualityProfileMismatch => "Remote Quality Unset",
-            _ => "Unknown"
-        };
-
-    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile)
+    private static (string Reason, string Message) Reason(TerminationReason termination)
     {
+        const string qualityMessage = "Adjust your Plex client's 'Remote Quality' to 'Original' or 'Maximum' via the settings.";
+        return termination switch
+        {
+            TerminationReason.StreamWidthMismatch => ("Stream Width Mismatch", qualityMessage),
+            TerminationReason.QualityProfileMismatch => ("Remote Quality Unset", qualityMessage),
+            TerminationReason.NeedsWindowsClient => ("Incorrect Client",
+                "Use or download the Plex Desktop Client to stream this content."),
+            _ => throw new ArgumentOutOfRangeException(nameof(termination), termination, "Invalid Termination Reason")
+        };
+    }
+
+    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? device)
+    {
+        if (!string.IsNullOrWhiteSpace(device) && device.Equals("Windows", StringComparison.OrdinalIgnoreCase))
+            return TerminationReason.NeedsWindowsClient;
         if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase)) return TerminationReason.QualityProfileMismatch;
         if (sourceWidth != streamWidth) return TerminationReason.StreamWidthMismatch;
         return TerminationReason.Ok;

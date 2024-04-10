@@ -14,7 +14,7 @@ public class EventParsingService(EventProcessingService eventProcessingService, 
             BaseEvent? baseEvent = null;
             if (plex.Event.ToString().Contains("media", StringComparison.OrdinalIgnoreCase))
             {
-                if (plex.Metadata.Title?.Contains("preroll", StringComparison.OrdinalIgnoreCase) ?? false) return;
+                if (plex.Metadata.Type is MediaType.Clip) return;
 
                 // Episodes have a GrandparentTitle that we want to include in the event title
                 var title = plex.Metadata.Type is MediaType.Episode

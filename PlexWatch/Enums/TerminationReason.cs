@@ -4,5 +4,6 @@ public enum TerminationReason
 {
     Ok,
     StreamWidthMismatch,
-    QualityProfileMismatch
+    QualityProfileMismatch,
+    NeedsWindowsClient
 }
