@@ -21,6 +21,7 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
 
             foreach (var responseMeta in response.MediaContainer.Metadata)
             {
+                if (responseMeta.Type is MediaType.Clip) continue;
                 await HandleMetadataAsync(responseMeta);
             }
         }
@@ -101,21 +102,21 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             AudioDecision = audioDecision.Titleize()
         });
 
-        var reason = Reason(terminate);
+        var reason = GetReason(terminate);
         // Depending on the client, it will either keep the newline as expected, or replace it with a space.
         await plexApi.TerminateSessionAsync(sessionId, $"«ERROR»\n[Session ID: {sessionId}]," +
                                                        $"\n[Reason: {reason.Reason}]," +
                                                        $"\n[Message: {reason.Message}]");
     }
 
-    private static (string Reason, string Message) Reason(TerminationReason termination)
+    private static (string Reason, string Message) GetReason(TerminationReason termination)
     {
         const string qualityMessage = "Adjust your Plex client's 'Remote Quality' to 'Original' or 'Maximum' via the settings.";
         return termination switch
         {
             TerminationReason.StreamWidthMismatch => ("Stream Width Mismatch", qualityMessage),
-            TerminationReason.QualityProfileMismatch => ("Remote Quality Unset", qualityMessage),
-            TerminationReason.NeedsWindowsClient => ("Incorrect Client",
+            TerminationReason.RemoteQualityUnset => ("Remote Quality Unset", qualityMessage),
+            TerminationReason.IncorrectClient => ("Incorrect Client",
                 "Use or download the Plex Desktop Client to stream this content."),
             _ => throw new ArgumentOutOfRangeException(nameof(termination), termination, "Invalid Termination Reason")
         };
@@ -124,9 +125,14 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
     private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? device)
     {
         if (!string.IsNullOrWhiteSpace(device) && device.Equals("Windows", StringComparison.OrdinalIgnoreCase))
-            return TerminationReason.NeedsWindowsClient;
-        if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase)) return TerminationReason.QualityProfileMismatch;
-        if (sourceWidth != streamWidth) return TerminationReason.StreamWidthMismatch;
+            return TerminationReason.IncorrectClient;
+
+        if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
+            return TerminationReason.RemoteQualityUnset;
+
+        if (sourceWidth != streamWidth)
+            return TerminationReason.StreamWidthMismatch;
+
         return TerminationReason.Ok;
     }
 
