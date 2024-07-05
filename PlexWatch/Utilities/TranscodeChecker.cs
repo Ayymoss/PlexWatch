@@ -130,7 +130,8 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
         if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
             return TerminationReason.RemoteQualityUnset;
 
-        if (sourceWidth != streamWidth)
+        var tolerance = 0.1 * sourceWidth;
+        if (Math.Abs(sourceWidth - streamWidth) > tolerance)
             return TerminationReason.StreamWidthMismatch;
 
         return TerminationReason.Ok;
