@@ -5,12 +5,14 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
 using PlexWatch.Services;
 using PlexWatch.Subscriptions;
 using PlexWatch.Utilities;
 using Refit;
+using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
 
@@ -22,10 +24,10 @@ public static class Program
     {
         var builder = WebApplication.CreateBuilder();
 
-        builder.Configuration.SetBasePath(Path.Join(Directory.GetCurrentDirectory(), "_Configuration")).AddJsonFile("Configuration.json");
+        builder.Configuration.SetBasePath(Path.Join(Directory.GetCurrentDirectory(), "_Configuration"))
+            .AddJsonFile("Configuration.json", false, true);
 
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddOpenApi();
 
         builder.Host.UseSerilog();
         builder.Host.ConfigureServices(RegisterDependencies);
@@ -33,12 +35,12 @@ public static class Program
         var app = builder.Build();
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            app.MapOpenApi();
+            app.MapScalarApiReference(options => { options.WithTitle("Plex Watch"); });
         }
         else
         {
-            var configuration = app.Services.GetRequiredService<Configuration>();
+            var configuration = app.Services.GetRequiredService<IOptionsMonitor<Configuration>>().CurrentValue;
             app.Urls.Add(configuration.BindAddress);
         }
 
@@ -78,9 +80,11 @@ public static class Program
 
     private static void RegisterDependencies(HostBuilderContext builder, IServiceCollection service)
     {
+        var config = builder.Configuration;
+        service.Configure<Configuration>(config);
+
         var configuration = builder.Configuration.Get<Configuration>() ?? new Configuration();
         RegisterLogging(configuration);
-        service.AddSingleton(configuration);
 
         // Services
         service.AddSingleton<EventParsingService>();

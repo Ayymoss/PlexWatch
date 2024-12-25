@@ -1,5 +1,6 @@
 ﻿using Humanizer;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PlexWatch.Enums;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
@@ -7,16 +8,31 @@ using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace PlexWatch.Utilities;
 
-public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi)
+public class TranscodeChecker
 {
     private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly ILogger<TranscodeChecker> _logger;
+    private readonly IPlexApi _plexApi;
+    private Configuration _configuration;
+
+    public TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi, IOptionsMonitor<Configuration> optionsMonitor)
+    {
+        _logger = logger;
+        _plexApi = plexApi;
+        _configuration = optionsMonitor.CurrentValue;
+        optionsMonitor.OnChange(updated =>
+        {
+            _configuration = updated;
+            logger.LogWarning("Configuration updated and reloaded...");
+        });
+    }
 
     public async Task CheckForTranscodeAsync(CancellationToken token)
     {
         await _semaphore.WaitAsync(token);
         try
         {
-            var response = await plexApi.GetSessions();
+            var response = await _plexApi.GetSessions();
             if (response.MediaContainer.Metadata is null || response.MediaContainer.Metadata.Count is 0) return;
 
             foreach (var responseMeta in response.MediaContainer.Metadata)
@@ -27,7 +43,7 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error executing scheduled action");
+            _logger.LogError(e, "Error executing scheduled action");
         }
         finally
         {
@@ -45,8 +61,8 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
 
         if (string.IsNullOrEmpty(ratingKey)) return;
         var contentMeta = mediaType is MediaType.Episode
-            ? await plexApi.GetEpisodeMetadataAsync(ratingKey)
-            : await plexApi.GetMovieMetadataAsync(ratingKey);
+            ? await _plexApi.GetEpisodeMetadataAsync(ratingKey)
+            : await _plexApi.GetMovieMetadataAsync(ratingKey);
 
         var contentMedia = contentMeta.MediaContainer.Metadata?.First().Media?.FirstOrDefault();
         if (contentMedia is null) return;
@@ -67,11 +83,12 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             ? $"{responseMeta.GrandparentTitle}: {responseMeta.Title}"
             : responseMeta.Title;
 
+        var isBlockedClient = IsBlockedClient(responseMeta.User?.Title, responseMeta.Player?.Title);
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
-        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, device);
+        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, device, isBlockedClient);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
 
-        logger.LogInformation("Session -> {@LogData}", new
+        _logger.LogInformation("Session -> {@LogData}", new
         {
             SessionId = sessionId,
             QualityProfile = qualityProfile,
@@ -92,7 +109,7 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
         });
 
         if (terminate is TerminationReason.Ok) return;
-        logger.LogWarning("Terminating Session [{TerminationReason}] -> {@LogData}", terminate.Humanize().Titleize(), new
+        _logger.LogWarning("Terminating Session [{TerminationReason}] -> {@LogData}", terminate.Humanize().Titleize(), new
         {
             SessionId = sessionId,
             QualityProfile = qualityProfile,
@@ -104,9 +121,9 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
 
         var reason = GetReason(terminate);
         // Depending on the client, it will either keep the newline as expected, or replace it with a space.
-        await plexApi.TerminateSessionAsync(sessionId, $"«ERROR»\n[Session ID: {sessionId}]," +
-                                                       $"\n[Reason: {reason.Reason}]," +
-                                                       $"\n[Message: {reason.Message}]");
+        await _plexApi.TerminateSessionAsync(sessionId, $"«ERROR»\n[Session ID: {sessionId}]," +
+                                                        $"\n[Reason: {reason.Reason}]," +
+                                                        $"\n[Message: {reason.Message}]");
     }
 
     private static (string Reason, string Message) GetReason(TerminationReason termination)
@@ -118,11 +135,13 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
             TerminationReason.RemoteQualityUnset => ("Remote Quality Unset", qualityMessage),
             TerminationReason.IncorrectClient => ("Incorrect Client",
                 "Use or download the Plex Desktop Client to stream this content."),
+            TerminationReason.BlockedClient => ("Prohibited Client", "This client has been blocked from usage."),
             _ => throw new ArgumentOutOfRangeException(nameof(termination), termination, "Invalid Termination Reason")
         };
     }
 
-    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? device)
+    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? device,
+        bool isBlockedClient)
     {
         if (!string.IsNullOrWhiteSpace(device) && device.Equals("Windows", StringComparison.OrdinalIgnoreCase))
             return TerminationReason.IncorrectClient;
@@ -130,11 +149,20 @@ public class TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi
         if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
             return TerminationReason.RemoteQualityUnset;
 
-        var tolerance = 0.1 * sourceWidth;
-        if (Math.Abs(sourceWidth - streamWidth) > tolerance)
+        if (Math.Abs(sourceWidth - streamWidth) > 0.1 * sourceWidth)
             return TerminationReason.StreamWidthMismatch;
 
+        if (isBlockedClient)
+            return TerminationReason.BlockedClient;
+
         return TerminationReason.Ok;
+    }
+
+    private bool IsBlockedClient(string? user, string? player)
+    {
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(player) || _configuration.BlockedDeviceNames.Count is 0) return false;
+
+        return _configuration.BlockedDeviceNames.TryGetValue(user, out var players) && players.Contains(player);
     }
 
     private string GetQualityProfile(string videoDecision, int streamBitrate, int sourceFileBitrate)

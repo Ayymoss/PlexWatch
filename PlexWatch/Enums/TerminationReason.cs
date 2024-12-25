@@ -5,5 +5,6 @@ public enum TerminationReason
     Ok,
     StreamWidthMismatch,
     RemoteQualityUnset,
-    IncorrectClient
+    IncorrectClient,
+    BlockedClient
 }
