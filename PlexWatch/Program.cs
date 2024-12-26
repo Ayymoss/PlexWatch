@@ -80,8 +80,7 @@ public static class Program
 
     private static void RegisterDependencies(HostBuilderContext builder, IServiceCollection service)
     {
-        var config = builder.Configuration;
-        service.Configure<Configuration>(config);
+        service.Configure<Configuration>(builder.Configuration);
 
         var configuration = builder.Configuration.Get<Configuration>() ?? new Configuration();
         RegisterLogging(configuration);

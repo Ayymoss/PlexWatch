@@ -57,7 +57,7 @@ public class TranscodeChecker
         var ratingKey = responseMeta.RatingKey;
         var videoDecision = responseMeta.TranscodeSession?.VideoDecision ?? "Direct Play";
         var device = responseMeta.Player?.Device;
-        var player = $"{responseMeta.Player?.Product}: {responseMeta.Player?.Title}";
+        var formattedPlayer = $"{responseMeta.Player?.Product}: {responseMeta.Player?.Title}";
 
         if (string.IsNullOrEmpty(ratingKey)) return;
         var contentMeta = mediaType is MediaType.Episode
@@ -98,7 +98,7 @@ public class TranscodeChecker
             Title = title,
             Type = mediaType,
             Device = device,
-            Player = player,
+            Player = formattedPlayer,
             VideoDecision = videoDecision.Titleize(),
             SourceVideoWidth = sourceVideoWidth,
             StreamVideoWidth = streamVideoWidth,
@@ -160,9 +160,11 @@ public class TranscodeChecker
 
     private bool IsBlockedClient(string? user, string? player)
     {
-        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(player) || _configuration.BlockedDeviceNames.Count is 0) return false;
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(player) ||
+            _configuration.BlockedDeviceNames.Count is 0) return false;
 
-        return _configuration.BlockedDeviceNames.TryGetValue(user, out var players) && players.Contains(player);
+        if (!_configuration.BlockedDeviceNames.TryGetValue(user, out var players)) return false;
+        return players.FirstOrDefault() == "*" || players.Contains(player);
     }
 
     private string GetQualityProfile(string videoDecision, int streamBitrate, int sourceFileBitrate)
