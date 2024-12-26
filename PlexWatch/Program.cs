@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
@@ -15,6 +16,7 @@ using Refit;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace PlexWatch;
 
@@ -50,13 +52,14 @@ public static class Program
         app.Services.GetRequiredService<EventParsingService>();
 
         await app.RunAsync();
+        await Log.CloseAndFlushAsync();
     }
 
     private static void MapEndpoints(IEndpointRouteBuilder app)
     {
         app.MapGet("/health", () => Results.Ok());
 
-        app.MapPost("/plex-webhook", async (HttpRequest request, EventParsingService eventParsingService) =>
+        app.MapPost("/plex-webhook", async (HttpRequest request, EventParsingService eventParsingService, ILogger logger) =>
         {
             if (!request.HasFormContentType) return Results.BadRequest("Invalid Content-Type");
 
@@ -70,7 +73,7 @@ public static class Program
             }
             catch (Exception e)
             {
-                Log.Error(e, "Error ingesting Plex Webhook");
+                logger.LogError(e, "Error ingesting Plex Webhook");
                 return Results.BadRequest("Error ingesting Plex Webhook");
             }
 
