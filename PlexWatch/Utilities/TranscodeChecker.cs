@@ -104,13 +104,13 @@ public class TranscodeChecker
             Type = mediaType,
             Device = device,
             Player = formattedPlayer,
+            StreamBitrate = streamBitrate,
+            SessionBandwidth = responseMeta.Session?.Bandwidth?.ToString() ?? "No Bandwidth",
             VideoDecision = videoDecision.Titleize(),
             SourceVideoWidth = sourceVideoWidth,
             StreamVideoWidth = streamVideoWidth,
-            StreamBitrate = streamBitrate,
-            MediaReportedBitrate = responseMedia.Bitrate?.ToString() ?? "No Bitrate",
             MediaExpectedBitrate = mediaBitrate,
-            SessionBandwidth = responseMeta.Session?.Bandwidth?.ToString() ?? "No Bandwidth"
+            MediaReportedBitrate = responseMedia.Bitrate?.ToString() ?? "No Bitrate"
         });
 
         if (terminate is TerminationReason.Ok) return;
@@ -130,21 +130,21 @@ public class TranscodeChecker
                                                         $"\n[Reason: {reason.Reason}]," +
                                                         $"\n[Message: {reason.Message}]");
         await _discordWebhookService.SendAsync($"Terminating: {userTitle} - {terminate.Humanize().Titleize()}",
-            $"Session ID -> {sessionId}\n" +
-            $"Quality Profile -> {qualityProfile}\n" +
-            $"Rating Key -> {ratingKey}\n" +
-            $"Title -> {title}\n" +
-            $"Type -> {mediaType}\n" +
-            $"Device -> {device ?? "Unknown"}\n" +
-            $"Player -> {formattedPlayer}\n" +
-            $"Stream Bitrate -> {streamBitrate}\n" +
-            $"Session Bandwidth -> {responseMeta.Session?.Bandwidth?.ToString("N0") ?? "No Bandwidth"}\n" +
-            $"Video Decision -> {videoDecision.Titleize()}\n" +
-            $"Audio Decision -> {audioDecision.Titleize()}\n" +
-            $"Source Video Width -> {sourceVideoWidth}\n" +
-            $"Stream Video Width -> {streamVideoWidth}\n" +
-            $"Media Reported Bitrate -> {responseMedia.Bitrate?.ToString("N0") ?? "No Bitrate"}\n" +
-            $"Media Expected Bitrate -> {mediaBitrate:N0}\n");
+            $"**Session ID**: {sessionId}\n" +
+            $"**Quality Profile**: {qualityProfile}\n" +
+            $"**Rating Key**: {ratingKey}\n" +
+            $"**Title**: {title}\n" +
+            $"**Type**: {mediaType}\n" +
+            $"**Device**: {device ?? "Unknown"}\n" +
+            $"**Player**: {formattedPlayer}\n" +
+            $"**Stream Bitrate**: {streamBitrate}\n" +
+            $"**Session Bandwidth**: {responseMeta.Session?.Bandwidth?.ToString("N0") ?? "No Bandwidth"}\n" +
+            $"**Video Decision**: {videoDecision.Titleize()}\n" +
+            $"**Audio Decision**: {audioDecision.Titleize()}\n" +
+            $"**Source Video Width**: {sourceVideoWidth}\n" +
+            $"**Stream Video Width**: {streamVideoWidth}\n" +
+            $"**Media Expected Bitrate**: {mediaBitrate:N0}\n" +
+            $"**Media Reported Bitrate**: {responseMedia.Bitrate?.ToString("N0") ?? "No Bitrate"}\n");
     }
 
     private static (string Reason, string Message) GetReason(TerminationReason termination)
