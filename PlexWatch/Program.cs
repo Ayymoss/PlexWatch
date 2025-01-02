@@ -59,7 +59,7 @@ public static class Program
     {
         app.MapGet("/health", () => Results.Ok());
 
-        app.MapPost("/plex-webhook", async (HttpRequest request, EventParsingService eventParsingService, ILogger logger) =>
+        app.MapPost("/plex-webhook", async (HttpRequest request, EventParsingService eventParsingService) =>
         {
             if (!request.HasFormContentType) return Results.BadRequest("Invalid Content-Type");
 
@@ -73,7 +73,7 @@ public static class Program
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error ingesting Plex Webhook");
+                Log.Error(e, "Error ingesting Plex Webhook");
                 return Results.BadRequest("Error ingesting Plex Webhook");
             }
 
@@ -92,6 +92,7 @@ public static class Program
         service.AddSingleton<EventParsingService>();
         service.AddSingleton<EventProcessingService>();
         service.AddSingleton<TranscodeChecker>();
+        service.AddSingleton<DiscordWebhookService>();
 
         // Subscriptions
         service.AddSingleton<SubscriptionActions>();
@@ -104,6 +105,7 @@ public static class Program
             c.DefaultRequestHeaders.Add("X-Plex-Token", configuration.PlexToken);
             c.BaseAddress = new Uri("http://10.10.1.6:32400");
         });
+        service.AddRefitClient<IDiscord>().ConfigureHttpClient(c => c.BaseAddress = new Uri(configuration.DiscordWebhook));
     }
 
     private static void RegisterLogging(Configuration configuration)

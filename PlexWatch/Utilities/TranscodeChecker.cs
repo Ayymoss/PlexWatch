@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using PlexWatch.Enums;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
+using PlexWatch.Services;
 using ArgumentOutOfRangeException = System.ArgumentOutOfRangeException;
 
 namespace PlexWatch.Utilities;
@@ -13,12 +14,15 @@ public class TranscodeChecker
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly ILogger<TranscodeChecker> _logger;
     private readonly IPlexApi _plexApi;
+    private readonly DiscordWebhookService _discordWebhookService;
     private Configuration _configuration;
 
-    public TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi, IOptionsMonitor<Configuration> optionsMonitor)
+    public TranscodeChecker(ILogger<TranscodeChecker> logger, IPlexApi plexApi, IOptionsMonitor<Configuration> optionsMonitor,
+        DiscordWebhookService discordWebhookService)
     {
         _logger = logger;
         _plexApi = plexApi;
+        _discordWebhookService = discordWebhookService;
         _configuration = optionsMonitor.CurrentValue;
         optionsMonitor.OnChange(updated =>
         {
@@ -58,6 +62,7 @@ public class TranscodeChecker
         var videoDecision = responseMeta.TranscodeSession?.VideoDecision ?? "Direct Play";
         var device = responseMeta.Player?.Device;
         var formattedPlayer = $"{responseMeta.Player?.Product}: {responseMeta.Player?.Title}";
+        var userTitle = responseMeta.User?.Title;
 
         if (string.IsNullOrEmpty(ratingKey)) return;
         var contentMeta = mediaType is MediaType.Episode
@@ -83,7 +88,7 @@ public class TranscodeChecker
             ? $"{responseMeta.GrandparentTitle}: {responseMeta.Title}"
             : responseMeta.Title;
 
-        var isBlockedClient = IsBlockedClient(responseMeta.User?.Title, responseMeta.Player?.Title);
+        var isBlockedClient = IsBlockedClient(userTitle, responseMeta.Player?.Title);
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
         var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, device, isBlockedClient);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
@@ -93,7 +98,7 @@ public class TranscodeChecker
             SessionId = sessionId,
             QualityProfile = qualityProfile,
             Terminate = terminate,
-            UserTitle = responseMeta.User?.Title,
+            UserTitle = userTitle,
             RatingKey = ratingKey,
             Title = title,
             Type = mediaType,
@@ -113,7 +118,7 @@ public class TranscodeChecker
         {
             SessionId = sessionId,
             QualityProfile = qualityProfile,
-            UserTitle = responseMeta.User?.Title,
+            UserTitle = userTitle,
             Title = title,
             VideoDecision = videoDecision.Titleize(),
             AudioDecision = audioDecision.Titleize()
@@ -124,6 +129,22 @@ public class TranscodeChecker
         await _plexApi.TerminateSessionAsync(sessionId, $"«ERROR»\n[Session ID: {sessionId}]," +
                                                         $"\n[Reason: {reason.Reason}]," +
                                                         $"\n[Message: {reason.Message}]");
+        await _discordWebhookService.SendAsync($"Terminating: {userTitle} - {terminate.Humanize().Titleize()}",
+            $"Session ID -> {sessionId}\n" +
+            $"Quality Profile -> {qualityProfile}\n" +
+            $"Rating Key -> {ratingKey}\n" +
+            $"Title -> {title}\n" +
+            $"Type -> {mediaType}\n" +
+            $"Device -> {device ?? "Unknown"}\n" +
+            $"Player -> {formattedPlayer}\n" +
+            $"Stream Bitrate -> {streamBitrate}\n" +
+            $"Session Bandwidth -> {responseMeta.Session?.Bandwidth?.ToString("N0") ?? "No Bandwidth"}\n" +
+            $"Video Decision -> {videoDecision.Titleize()}\n" +
+            $"Audio Decision -> {audioDecision.Titleize()}\n" +
+            $"Source Video Width -> {sourceVideoWidth}\n" +
+            $"Stream Video Width -> {streamVideoWidth}\n" +
+            $"Media Reported Bitrate -> {responseMedia.Bitrate?.ToString("N0") ?? "No Bitrate"}\n" +
+            $"Media Expected Bitrate -> {mediaBitrate:N0}\n");
     }
 
     private static (string Reason, string Message) GetReason(TerminationReason termination)
