@@ -82,7 +82,7 @@ jobs:
           name: plexwatch-build
           path: ./publish
 
-build_and_push_docker:
+  build_and_push_docker:
     runs-on: ubuntu-latest
     needs: [build, make_version]
     permissions:
