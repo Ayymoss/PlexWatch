@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Restore cache
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: cache_dir
           key: revision-number
@@ -55,10 +55,10 @@ jobs:
       version: ${{ needs.make_version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
@@ -71,7 +71,7 @@ jobs:
           cp -r PlexWatch/DefaultConfiguration ./publish/
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: plexwatch-build
           path: ./publish
@@ -84,20 +84,20 @@ jobs:
       packages: write
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           name: plexwatch-build
           path: .
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
