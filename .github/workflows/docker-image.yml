@@ -1,0 +1,106 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  make_version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Restore cache
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: cache_dir
+          key: revision-number
+
+      - name: Get current date
+        id: date
+        run: echo "current_date=$(date +'%Y.%-m.%-d')" >> $GITHUB_ENV
+
+      - name: Check and update revision number
+        id: revision
+        run: |
+          FILENAME=cache_dir/revision_number.txt
+          DATEFILE=cache_dir/previous_date.txt
+          mkdir -p cache_dir
+          if [ -f "$DATEFILE" ]; then
+            prev_date=$(cat "$DATEFILE")
+            rev_number=$(cat "$FILENAME")
+          else
+            prev_date=""
+            rev_number=0
+          fi
+          if [ "$current_date" = "$prev_date" ]; then
+            rev_number=$((rev_number + 1))
+          else
+            rev_number=1
+          fi
+          echo "New revision number: $rev_number"
+          echo $rev_number > "$FILENAME"
+          echo $current_date > "$DATEFILE"
+          echo "revision_number=$rev_number" >> $GITHUB_OUTPUT
+
+      - name: Generate version string
+        id: version
+        run: echo "version=${{ env.current_date }}.${{ steps.revision.outputs.revision_number }}" >> $GITHUB_OUTPUT
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [make_version]
+    outputs:
+      version: ${{ needs.make_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore, Build, and Publish
+        run: dotnet publish PlexWatch/PlexWatch.csproj -c Release -o ./publish
+
+      - name: Prepare build artifact
+        run: |
+          cp Dockerfile entrypoint.sh ./publish/
+          cp -r PlexWatch/DefaultConfiguration ./publish/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: plexwatch-build
+          path: ./publish
+
+  build_and_push_docker:
+    runs-on: ubuntu-latest
+    needs: [build, make_version]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: plexwatch-build
+          path: .
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ needs.make_version.outputs.version }}

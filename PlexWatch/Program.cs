@@ -25,7 +25,8 @@ public static class Program
         var builder = WebApplication.CreateBuilder();
 
         builder.Configuration.SetBasePath(Path.Join(Directory.GetCurrentDirectory(), "_Configuration"))
-            .AddJsonFile("Configuration.json", false, true);
+            .AddJsonFile("Configuration.json", optional: true, reloadOnChange: true)
+            .AddEnvironmentVariables();
 
         builder.Services.AddOpenApi();
 
@@ -37,11 +38,6 @@ public static class Program
         {
             app.MapOpenApi();
             app.MapScalarApiReference(options => { options.WithTitle("Plex Watch"); });
-        }
-        else
-        {
-            var configuration = app.Services.GetRequiredService<IOptionsMonitor<Configuration>>().CurrentValue;
-            app.Urls.Add(configuration.BindAddress);
         }
 
         MapEndpoints(app);
