@@ -3,6 +3,12 @@ name: Docker Image CI
 on:
   push:
     branches: [ "master" ]
+  workflow_dispatch:
+    inputs:
+      buildNumber:
+        description: 'Manual build number (optional)'
+        required: false
+        type: string
 
 jobs:
   make_version:
