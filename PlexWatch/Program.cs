@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PlexWatch.Interfaces;
 using PlexWatch.Models.Plex;
@@ -16,7 +15,6 @@ using Refit;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Events;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace PlexWatch;
 

@@ -90,7 +90,7 @@ public class TranscodeChecker
 
         var isBlockedClient = IsBlockedClient(userTitle, responseMeta.Player?.Title);
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
-        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, device, isBlockedClient);
+        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, formattedPlayer, isBlockedClient);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
 
         _logger.LogInformation("Session -> {@LogData}", new
@@ -155,16 +155,17 @@ public class TranscodeChecker
             TerminationReason.StreamWidthMismatch => ("Stream Width Mismatch", qualityMessage),
             TerminationReason.RemoteQualityUnset => ("Remote Quality Unset", qualityMessage),
             TerminationReason.IncorrectClient => ("Incorrect Client",
-                "Use or download the Plex Desktop Client to stream this content."),
+                "Use or download the Plex Desktop client to stream this content."),
             TerminationReason.BlockedClient => ("Prohibited Client", "This client has been blocked from usage."),
             _ => throw new ArgumentOutOfRangeException(nameof(termination), termination, "Invalid Termination Reason")
         };
     }
 
-    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? device,
+    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? player,
         bool isBlockedClient)
     {
-        if (!string.IsNullOrWhiteSpace(device) && device.Equals("Windows", StringComparison.OrdinalIgnoreCase))
+        var isPlexWeb = !string.IsNullOrWhiteSpace(player) && player.Contains("Plex Web", StringComparison.OrdinalIgnoreCase);
+        if (isPlexWeb)
             return TerminationReason.IncorrectClient;
 
         if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
@@ -181,8 +182,8 @@ public class TranscodeChecker
 
     private bool IsBlockedClient(string? user, string? player)
     {
-        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(player) ||
-            _configuration.BlockedDeviceNames.Count is 0) return false;
+        if (string.IsNullOrWhiteSpace(user) || string.IsNullOrWhiteSpace(player)) return false;
+        if (_configuration.BlockedDeviceNames is null || _configuration.BlockedDeviceNames.Count is 0) return false;
 
         if (!_configuration.BlockedDeviceNames.TryGetValue(user, out var players)) return false;
         return players.FirstOrDefault() == "*" || players.Contains(player);
