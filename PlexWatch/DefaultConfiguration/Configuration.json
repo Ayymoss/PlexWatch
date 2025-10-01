@@ -1,3 +1,8 @@
 {
+  "PlexUrl": "",
+  "PlexToken": "",
+  "DiscordWebhook": "",
+  "Debug": false,
+  "TranscodeKickBehaviour": 2,
   "BlockedDeviceNames": {}
 }
