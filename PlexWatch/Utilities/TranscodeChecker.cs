@@ -33,8 +33,6 @@ public class TranscodeChecker
 
     public async Task CheckForTranscodeAsync(CancellationToken token)
     {
-        if (_configuration.TranscodeKickBehaviour is TranscodeKickBehaviour.Disabled) return;
-
         await _semaphore.WaitAsync(token);
         try
         {
@@ -92,18 +90,8 @@ public class TranscodeChecker
 
         var isBlockedClient = IsBlockedClient(userTitle, responseMeta.Player?.Title);
         var qualityProfile = GetQualityProfile(videoDecision, streamBitrate.Value, mediaBitrate.Value);
+        var terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, formattedPlayer, isBlockedClient, _configuration.TranscodeKickBehaviour);
         var audioDecision = responseMeta.TranscodeSession?.AudioDecision ?? "Unknown";
-        var terminate = TerminationReason.Ok;
-
-        if (_configuration.TranscodeKickBehaviour is TranscodeKickBehaviour.KickOn4K && sourceVideoWidth.Value < 3840)
-        {
-            // Don't terminate if the policy is 4K only and the content is not 4K.
-        }
-        else
-        {
-            terminate = TerminateStream(sourceVideoWidth.Value, streamVideoWidth.Value, qualityProfile, formattedPlayer,
-                isBlockedClient);
-        }
 
         _logger.LogInformation("Session -> {@LogData}", new
         {
@@ -173,21 +161,40 @@ public class TranscodeChecker
         };
     }
 
-    private static TerminationReason TerminateStream(int sourceWidth, int streamWidth, string qualityProfile, string? player,
-        bool isBlockedClient)
+    private static TerminationReason TerminateStream(int sourceVideoWidth, int streamWidth, string qualityProfile, string? player,
+        bool isBlockedClient, TranscodeKickBehaviour transcodeKickBehaviour)
     {
+        // These checks are always active
         var isPlexWeb = !string.IsNullOrWhiteSpace(player) && player.Contains("Plex Web", StringComparison.OrdinalIgnoreCase);
         if (isPlexWeb)
             return TerminationReason.IncorrectClient;
 
-        if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
-            return TerminationReason.RemoteQualityUnset;
-
-        if (Math.Abs(sourceWidth - streamWidth) > 0.1 * sourceWidth)
-            return TerminationReason.StreamWidthMismatch;
-
         if (isBlockedClient)
             return TerminationReason.BlockedClient;
+
+        // Now for the conditional transcode checks
+        if (transcodeKickBehaviour is TranscodeKickBehaviour.Disabled)
+        {
+            return TerminationReason.Ok; // Don't check for transcode reasons
+        }
+
+        var checkTranscode = true;
+        if (transcodeKickBehaviour is TranscodeKickBehaviour.KickOn4K)
+        {
+            if (sourceVideoWidth < 3840)
+            {
+                checkTranscode = false;
+            }
+        }
+
+        if (checkTranscode)
+        {
+            if (!qualityProfile.Equals("Original", StringComparison.OrdinalIgnoreCase))
+                return TerminationReason.RemoteQualityUnset;
+
+            if (Math.Abs(sourceVideoWidth - streamWidth) > 0.1 * sourceVideoWidth)
+                return TerminationReason.StreamWidthMismatch;
+        }
 
         return TerminationReason.Ok;
     }
