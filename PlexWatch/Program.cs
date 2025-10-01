@@ -97,9 +97,13 @@ public static class Program
         {
             c.DefaultRequestHeaders.Add("Accept", "application/json");
             c.DefaultRequestHeaders.Add("X-Plex-Token", configuration.PlexToken);
-            c.BaseAddress = new Uri("http://10.10.1.6:32400");
+            c.BaseAddress = new Uri(configuration.PlexUrl ?? throw new InvalidOperationException("PlexUrl cannot be null"));
         });
-        service.AddRefitClient<IDiscord>().ConfigureHttpClient(c => c.BaseAddress = new Uri(configuration.DiscordWebhook));
+
+        if (!string.IsNullOrEmpty(configuration.DiscordWebhook))
+        {
+            service.AddRefitClient<IDiscord>().ConfigureHttpClient(c => c.BaseAddress = new Uri(configuration.DiscordWebhook));
+        }
     }
 
     private static void RegisterLogging(Configuration configuration)
