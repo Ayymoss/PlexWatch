@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.idea/
+**/.vs/
+**/.git/
+**/_API_EXAMPLES/
+**/_Log/
+**/node_modules/
+*.md
+.gitignore
+.dockerignore

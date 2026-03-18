@@ -11,7 +11,7 @@ public class WebhookRoot
 
     public bool User { get; set; }
     public bool Owner { get; set; }
-    public Account Account { get; set; }
-    public Player Player { get; set; }
-    public Metadata Metadata { get; set; }
+    public required Account Account { get; set; }
+    public required Player Player { get; set; }
+    public required Metadata Metadata { get; set; }
 }
