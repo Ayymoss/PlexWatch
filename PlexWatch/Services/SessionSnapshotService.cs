@@ -117,9 +117,11 @@ public class SessionSnapshotService(
                 ? t.GetString() ?? "unknown"
                 : "unknown";
 
+            var product = GetPlayerField(session, "product") ?? "unknown";
+            var device = GetPlayerField(session, "device") ?? "unknown";
             var videoDecision = GetTranscodeField(session, "videoDecision") ?? "directplay";
 
-            var fileName = $"{user}_{videoDecision}_{fingerprint}.json";
+            var fileName = $"{user}_{videoDecision}_{product}_{device}_{fingerprint}.json";
             var filePath = Path.Join(dir, fileName);
 
             if (File.Exists(filePath)) return;
