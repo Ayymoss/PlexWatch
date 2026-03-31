@@ -46,14 +46,15 @@ public class SessionSnapshotService(
         var videoDecision = GetTranscodeField(session, "videoDecision") ?? "directplay";
         var sourceVideoCodec = GetTranscodeField(session, "sourceVideoCodec");
         var streamVideoCodec = GetTranscodeField(session, "videoCodec");
-        var clientPlatform = GetPlayerField(session, "platform");
+        var product = GetPlayerField(session, "product");
+        var device = GetPlayerField(session, "device");
 
         // Get resolution from the selected (active) media entry, falling back to first
         var (sourceWidth, streamWidth) = GetResolutions(session);
 
-        if (clientPlatform is null) return null;
+        if (product is null) return null;
 
-        var raw = $"{videoDecision}|{sourceVideoCodec}|{streamVideoCodec}|{sourceWidth}|{streamWidth}|{clientPlatform}";
+        var raw = $"{videoDecision}|{sourceVideoCodec}|{streamVideoCodec}|{sourceWidth}|{streamWidth}|{product}|{device}";
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)))[..12];
         return hash;
     }
