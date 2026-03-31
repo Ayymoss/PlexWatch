@@ -6,4 +6,6 @@ public class MonitoringSettings
 
     public int PollingIntervalSeconds { get; set; } = 30;
     public Dictionary<string, string[]> BlockedDeviceNames { get; set; } = new();
+    public bool SnapshotEnabled { get; set; }
+    public string SnapshotDirectory { get; set; } = "_Snapshots";
 }

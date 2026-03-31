@@ -4,5 +4,6 @@ public class Media
 {
     public int? Bitrate { get; set; }
     public int? Width { get; set; }
+    public bool? Selected { get; set; }
     public IList<Part>? Part { get; set; }
 }

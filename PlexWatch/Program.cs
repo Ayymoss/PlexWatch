@@ -58,6 +58,7 @@ public static class Program
         var plexSettings = builder.Configuration.GetSection(PlexSettings.SectionName).Get<PlexSettings>() ?? new PlexSettings();
         var discordSettings = builder.Configuration.GetSection(DiscordSettings.SectionName).Get<DiscordSettings>() ?? new DiscordSettings();
 
+        builder.Services.AddSingleton<SessionSnapshotService>();
         builder.Services.AddSingleton<SessionContextFactory>();
         builder.Services.AddSingleton<RuleEvaluator>();
         builder.Services.AddSingleton<SessionTerminator>();

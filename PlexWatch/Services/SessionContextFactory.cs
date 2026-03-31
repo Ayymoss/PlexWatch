@@ -1,21 +1,33 @@
+using System.Text.Json;
 using Humanizer;
+using Microsoft.Extensions.Logging;
 using PlexWatch.Enums;
 using PlexWatch.Interfaces;
 using PlexWatch.Models;
 using PlexWatch.Models.Plex;
+using PlexWatch.Utilities;
 
 namespace PlexWatch.Services;
 
-public class SessionContextFactory(IPlexApi plexApi)
+public class SessionContextFactory(
+    IPlexApi plexApi,
+    SessionSnapshotService snapshotService,
+    ILogger<SessionContextFactory> logger)
 {
     /// <summary>
     /// Fetches all active Plex sessions and transforms them into <see cref="SessionContext"/> objects.
     /// Filters out clips and tracks, and skips sessions with incomplete metadata.
+    /// Captures raw API snapshots for test fixture collection before any filtering.
     /// </summary>
     public async Task<List<SessionContext>> GetActiveSessionsAsync()
     {
-        var response = await plexApi.GetSessions();
-        var sessions = response.MediaContainer.Metadata;
+        using var rawResponse = await plexApi.GetSessionsRaw();
+        var json = await rawResponse.Content.ReadAsStringAsync();
+        var rawJson = JsonDocument.Parse(json);
+        snapshotService.TrySnapshot(rawJson.RootElement);
+
+        var response = JsonSerializer.Deserialize<PlexRoot>(json, JsonConverters.JsonOptions);
+        var sessions = response?.MediaContainer.Metadata;
         if (sessions is null || sessions.Count is 0) return [];
 
         var contexts = new List<SessionContext>();
@@ -32,27 +44,53 @@ public class SessionContextFactory(IPlexApi plexApi)
 
     private async Task<SessionContext?> CreateAsync(Metadata session)
     {
+        var userTitle = session.User?.Title ?? "unknown";
+        var title = session.Title ?? "unknown";
+
         var ratingKey = session.RatingKey;
-        if (string.IsNullOrEmpty(ratingKey)) return null;
+        if (string.IsNullOrEmpty(ratingKey))
+        {
+            logger.LogWarning("Dropping session for {User} ({Title}): missing RatingKey", userTitle, title);
+            return null;
+        }
 
         var sessionId = session.Session?.Id;
-        if (sessionId is null) return null;
+        if (sessionId is null)
+        {
+            logger.LogWarning("Dropping session for {User} ({Title}): missing Session.Id", userTitle, title);
+            return null;
+        }
 
         var contentMeta = session.Type is MediaType.Episode
             ? await plexApi.GetEpisodeMetadataAsync(ratingKey)
             : await plexApi.GetMovieMetadataAsync(ratingKey);
 
         var contentMedia = contentMeta.MediaContainer.Metadata?.FirstOrDefault()?.Media?.FirstOrDefault();
-        if (contentMedia is null) return null;
+        if (contentMedia is null)
+        {
+            logger.LogWarning("Dropping session for {User} ({Title}): content metadata lookup returned no media (RatingKey={RatingKey})",
+                userTitle, title, ratingKey);
+            return null;
+        }
 
-        var responseMedia = session.Media?.FirstOrDefault();
-        if (responseMedia is null) return null;
+        var responseMedia = session.Media?.FirstOrDefault(m => m.Selected == true) ?? session.Media?.FirstOrDefault();
+        if (responseMedia is null)
+        {
+            logger.LogWarning("Dropping session for {User} ({Title}): session has no Media array", userTitle, title);
+            return null;
+        }
 
         var mediaBitrate = contentMedia.Bitrate;
-        var streamBitrate = responseMedia.Part?.FirstOrDefault()?.Stream?.FirstOrDefault()?.Bitrate;
+        var streamBitrate = responseMedia.Bitrate;
         var streamVideoWidth = responseMedia.Width;
         var sourceVideoWidth = contentMedia.Width;
-        if (!mediaBitrate.HasValue || !streamBitrate.HasValue || !streamVideoWidth.HasValue || !sourceVideoWidth.HasValue) return null;
+        if (!mediaBitrate.HasValue || !streamBitrate.HasValue || !streamVideoWidth.HasValue || !sourceVideoWidth.HasValue)
+        {
+            logger.LogWarning("Dropping session for {User} ({Title}): missing numeric field(s) — " +
+                "MediaBitrate={MediaBitrate}, StreamBitrate={StreamBitrate}, StreamVideoWidth={StreamVideoWidth}, SourceVideoWidth={SourceVideoWidth}",
+                userTitle, title, mediaBitrate, streamBitrate, streamVideoWidth, sourceVideoWidth);
+            return null;
+        }
 
         var videoDecision = session.TranscodeSession?.VideoDecision ?? "Direct Play";
         var audioDecision = session.TranscodeSession?.AudioDecision ?? "Direct Play";

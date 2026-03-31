@@ -8,6 +8,9 @@ public interface IPlexApi
     [Get("/status/sessions")]
     Task<PlexRoot> GetSessions();
 
+    [Get("/status/sessions")]
+    Task<HttpResponseMessage> GetSessionsRaw();
+
     [Get("/library/metadata/{metadataKey}/grandchildren")]
     Task<PlexRoot> GetEpisodeMetadataAsync([AliasAs("metadataKey")] string metadataKey);
 
