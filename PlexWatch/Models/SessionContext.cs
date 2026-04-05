@@ -8,6 +8,7 @@ public record SessionContext
     public required string? UserTitle { get; init; }
     public required string Title { get; init; }
     public required MediaType MediaType { get; init; }
+    public required PlaybackCategory PlaybackCategory { get; init; }
     public required string RatingKey { get; init; }
     public required string? Device { get; init; }
     public required string Player { get; init; }
@@ -19,5 +20,6 @@ public record SessionContext
     public required int StreamBitrate { get; init; }
     public required int MediaBitrate { get; init; }
     public required int? SessionBandwidth { get; init; }
-    public required int? MediaReportedBitrate { get; init; }
+    public string? SourceVideoCodec { get; init; }
+    public string? StreamVideoCodec { get; init; }
 }

@@ -30,6 +30,7 @@ public class DiscordNotifier(IDiscord discord, ILogger<DiscordNotifier> logger)
                     Fields =
                     [
                         new EmbedField { Name = "Reason", Value = reason.Humanize(LetterCasing.Title), Inline = true },
+                        new EmbedField { Name = "Playback", Value = session.PlaybackCategory.Humanize(LetterCasing.Title), Inline = true },
                         new EmbedField { Name = "Player", Value = session.Player, Inline = true },
                         new EmbedField { Name = "Device", Value = session.Device ?? "Unknown", Inline = true },
                         new EmbedField { Name = "Quality Profile", Value = session.QualityProfile, Inline = true },

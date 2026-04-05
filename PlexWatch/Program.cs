@@ -59,6 +59,7 @@ public static class Program
         var discordSettings = builder.Configuration.GetSection(DiscordSettings.SectionName).Get<DiscordSettings>() ?? new DiscordSettings();
 
         builder.Services.AddSingleton<SessionSnapshotService>();
+        builder.Services.AddSingleton<PlexSessionProvider>();
         builder.Services.AddSingleton<SessionContextFactory>();
         builder.Services.AddSingleton<RuleEvaluator>();
         builder.Services.AddSingleton<SessionTerminator>();

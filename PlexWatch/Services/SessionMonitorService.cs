@@ -8,6 +8,7 @@ namespace PlexWatch.Services;
 
 public class SessionMonitorService : BackgroundService
 {
+    private readonly PlexSessionProvider _sessionProvider;
     private readonly SessionContextFactory _contextFactory;
     private readonly RuleEvaluator _ruleEvaluator;
     private readonly SessionTerminator _sessionTerminator;
@@ -18,6 +19,7 @@ public class SessionMonitorService : BackgroundService
     private CancellationTokenSource? _delayCts;
 
     public SessionMonitorService(
+        PlexSessionProvider sessionProvider,
         SessionContextFactory contextFactory,
         RuleEvaluator ruleEvaluator,
         SessionTerminator sessionTerminator,
@@ -25,6 +27,7 @@ public class SessionMonitorService : BackgroundService
         IOptionsMonitor<MonitoringSettings> optionsMonitor,
         ILogger<SessionMonitorService> logger)
     {
+        _sessionProvider = sessionProvider;
         _contextFactory = contextFactory;
         _ruleEvaluator = ruleEvaluator;
         _sessionTerminator = sessionTerminator;
@@ -85,7 +88,8 @@ public class SessionMonitorService : BackgroundService
 
         try
         {
-            var contexts = await _contextFactory.GetActiveSessionsAsync();
+            var sessions = await _sessionProvider.GetActiveSessionsAsync();
+            var contexts = await _contextFactory.BuildContextsAsync(sessions);
 
             foreach (var context in contexts)
             {
@@ -94,6 +98,7 @@ public class SessionMonitorService : BackgroundService
                 _logger.LogInformation("Session -> {@SessionData}", new
                 {
                     context.SessionId,
+                    context.PlaybackCategory,
                     context.QualityProfile,
                     Terminate = reason,
                     context.UserTitle,
